@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'node_app'
+    static_configs:
+      - targets: ['192.168.1.69:5173']
+ 
+  - job_name: 'node_explorter'
+    static_configs:
+      - targets: ['node-exporter:9100']
