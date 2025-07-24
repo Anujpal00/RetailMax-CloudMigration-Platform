@@ -1,103 +1,107 @@
 terraform {
   required_providers {
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 2.20.0"  # ✅ Always specify a version to avoid issues
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.4.0" 
     }
   }
-
-  # ✅ Optional backend
-  # backend "s3" {
-  #   bucket = "my-terraform-state"
-  #   key    = "docker-app/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+}
+provider "aws" {
+  region = "us-east-1"
 }
 
-provider "docker" {
-  host = "npipe:////./pipe/docker_engine"  # ✅ Windows Docker Desktop named pipe
-}
 
-##########################
-# 🔹 Build Docker Image
-##########################
-
-resource "docker_image" "node_app_image" {
-  name = "node-app"
-
-  build {
-    path       = "${path.module}/.."
-    dockerfile = "dockerfile"
+resource "aws_vpc" "main_vpc" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "MainVPC"
   }
 }
 
-##########################
-# 🔹 Run Node.js Container
-##########################
 
-resource "docker_container" "node_app_container" {
-  name  = "node-app-container"
-  image = docker_image.node_app_image.latest
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = aws_vpc.main_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  availability_zone       = "us-east-1a"
 
-  ports {
-    internal = 5173
-    external = var.app_port  # ✅ Use the variable here
+  tags = {
+    Name = "PublicSubnet"
+  }
+}
+
+
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  tags = {
+    Name = "InternetGateway"
+  }
+}
+
+
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.main_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
   }
 
-  restart = "always"
-
-  env = [
-    "NODE_ENV=production",
-    "PORT=${var.app_port}"  # ✅ Use variable instead of hardcoded 5173
-  ]
+  tags = {
+    Name = "PublicRouteTable"
+  }
 }
 
-##########################
-# 🔹 Variable Declaration
-##########################
-
-variable "app_port" {
-  description = "Port to expose from container"
-  type        = number
-  default     = 5173
+# 5. Route Table Association
+resource "aws_route_table_association" "public_rta" {
+  subnet_id      = aws_subnet.public_subnet.id
+  route_table_id = aws_route_table.public_rt.id
 }
 
-##########################
-# 🔹 Outputs
-##########################
 
-output "container_id" {
-  description = "The ID of the Docker container"
-  value       = docker_container.node_app_container.id
+resource "aws_security_group" "web_sg" {
+  name        = "web-sg"
+  description = "Allow HTTP and SSH"
+  vpc_id      = aws_vpc.main_vpc.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "WebSG"
+  }
 }
 
-output "container_ip" {
-  description = "IP address of Node.js container"
-  value       = docker_container.node_app_container.ip_address
-}
 
-##########################
-# 🔹 Local Variables (Optional)
-##########################
+resource "aws_instance" "web" {
+  ami           = "ami-020cba7c55df1f615" 
+  instance_type = "t2.micro"
+  key_name      = "Demo" 
+  subnet_id     = aws_subnet.public_subnet.id
+  vpc_security_group_ids = [aws_security_group.web_sg.id]
 
-locals {
-  container_name = "node-app-container"
-}
-
-##########################
-# 🔹 Optional Nginx Container
-##########################
-
-data "docker_registry_image" "nginx" {
-  name = "nginx:latest"
-}
-
-resource "docker_container" "nginx" {
-  name  = "nginx-server"
-  image = data.docker_registry_image.nginx.name
-
-  ports {
-    internal = 5173
-    external = 5173  # ⚠️ Make sure 8080 is free on your machine
+  tags = {
+    Name = "WebServer"
   }
 }
