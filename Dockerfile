@@ -33,61 +33,37 @@
 
 
 
-
-
-# FROM node:18-alpine
-
-# # Optional: install bash if needed
-# RUN apk add --no-cache bash
-
-# # Set working directory
-# WORKDIR /app
-
-# # Copy package files
-# COPY package*.json ./
-
-# # Install only production dependencies
-# RUN npm install --production
-
-# # Copy all other source files
-# COPY . .
-
-# # Expose the backend port
-# EXPOSE 3000
-
-# # Start the app
-# CMD ["npm", "start"]
-
-
-
-
-
-# === Step 1: Build frontend ===
+# === Stage 1: Build Frontend ===
 FROM node:18-alpine AS frontend
 
 WORKDIR /app/frontend
 
+# Copy frontend package files and install dependencies
 COPY Frontend/package*.json ./
 RUN npm install
+
+# Copy the rest of the frontend source and build
 COPY Frontend/ ./
 RUN npm run build
 
 
-# === Step 2: Build backend ===
-FROM node:18-alpine
+# === Stage 2: Build Backend ===
+FROM node:18-alpine AS backend
 
 WORKDIR /app
 
-# Install backend dependencies
-COPY package*.json ./
-RUN npm install --production
+# Copy backend package files and install dependencies
+COPY api/package*.json ./
+RUN npm install --omit=dev
 
-# Copy backend source
-COPY . .
+# Copy backend source code
+COPY api/ ./
 
-# Copy built frontend into backend (assumes backend serves static files from /app/frontend/dist)
+# Copy frontend build output into backend public directory
 COPY --from=frontend /app/frontend/dist ./public
 
 EXPOSE 3000
 CMD ["npm", "start"]
+
+
 
