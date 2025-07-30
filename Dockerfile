@@ -1,69 +1,32 @@
-# # Use lightweight Node image
-# FROM node:18-alpine
-
-# # Install bash
-# RUN apk add --no-cache bash
-
-# # Set working directory
-# WORKDIR /app
-
-# # Copy only package.json and package-lock.json from Frontend
-# # COPY Frontend/package*.json ./
-# COPY package*.json ./
-
-
-# # Install frontend dependencies
-# RUN npm install
-
-# # Copy rest of the frontend code
-# COPY Frontend/ ./
-# # Copy the API JSON file
-# COPY api/products.json ./api/products.json
-
-# # Add node_modules/.bin to PATH (for vite)
-# ENV PATH="./node_modules/.bin:$PATH"
-
-# # Expose Vite port
-# EXPOSE 5173
-
-# # Run Vite dev server
-# CMD ["npm", "run", "dev"]
-
-
-
-
-
 # === Stage 1: Build Frontend ===
-FROM node:18-alpine AS frontend
-
-WORKDIR /app/frontend
-
-# Copy frontend package files and install dependencies
-COPY Frontend/package*.json ./
-RUN npm install
-
-# Copy the rest of the frontend source and build
-COPY Frontend/ ./
-RUN npm run build
-
-
-# === Stage 2: Build Backend ===
-FROM node:18-alpine AS backend
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Copy backend package files and install dependencies
-COPY api/package*.json ./
-RUN npm install --omit=dev
+# Install dependencies
+COPY Frontend/package*.json ./
+RUN npm install
 
-# Copy backend source code
-COPY api/ ./
+# Copy frontend source code
+COPY Frontend/ ./
 
-# Copy frontend build output into backend public directory
-COPY --from=frontend /app/frontend/dist ./public
+# Copy shared assets (products.json and images)
+COPY api/products.json ./public/api/products.json
+COPY Frontend/public/images ./public/images
 
-EXPOSE 3000
-CMD ["npm", "start"]
+# Build frontend
+RUN npm run build
 
+# === Stage 2: Serve with Nginx ===
+FROM nginx:alpine
 
+# Remove default nginx page
+RUN rm -rf /usr/share/nginx/html/*
 
+# Copy built frontend from previous stage
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

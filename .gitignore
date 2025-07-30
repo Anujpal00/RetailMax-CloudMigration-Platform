@@ -1,4 +1,6 @@
-# Logs
+# --------------------------------
+# LOG FILES
+# --------------------------------
 logs
 *.log
 npm-debug.log*
@@ -6,13 +8,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+crash.log
 
+# --------------------------------
+# NODE.JS / FRONTEND
+# --------------------------------
 node_modules
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
+# --------------------------------
+# EDITOR / OS FILES
+# --------------------------------
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -22,12 +30,16 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
+# --------------------------------
+# TERRAFORM
+# --------------------------------
 .terraform/
 *.tfstate
 *.tfstate.backup
-crash.log
-*.log
 *.tfvars
 *.tfvars.json
 .terraform.lock.hcl
@@ -35,6 +47,92 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
-
 .terraformrc
 terraform.rc
+
+# --------------------------------
+# ENVIRONMENT VARIABLES / SECRETS
+# --------------------------------
+.env
+.env.*.local
+.env.local
+*.secret
+*.key
+*.pem
+*.p12
+*.jks
+*.crt
+*.cer
+*.der
+
+# --------------------------------
+# ANSIBLE
+# --------------------------------
+*.retry
+*.cfg
+inventory/*.ini
+inventory/*.yaml
+host_vars/
+group_vars/
+vault_pass.txt
+ansible.log
+
+# --------------------------------
+# JENKINS
+# --------------------------------
+*.hpi
+jenkins_home/
+jenkins/secrets/
+jenkins/jobs/
+*.lastStable
+*.lastSuccessful
+
+# --------------------------------
+# DOCKER
+# --------------------------------
+.docker/
+.dockerignore
+docker-compose.override.yml
+*.tar
+*.img
+
+# --------------------------------
+# PROMETHEUS / GRAFANA
+# --------------------------------
+prometheus-data/
+grafana-data/
+*.db
+*.rdb
+*.json
+
+# --------------------------------
+# PYTHON (if used for automation)
+# --------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+env/
+ENV/
+*.ipynb_checkpoints/
+
+# --------------------------------
+# DEPLOYMENT / SECRETS
+# --------------------------------
+deployment/*.key
+deployment/*.pem
+deployment/*.crt
+secrets/
+credentials/
+
+# --------------------------------
+# BACKUPS / TEMP FILES
+# --------------------------------
+*.bak
+*.tmp
+*.swp
+*.swo
+*.old
+
+

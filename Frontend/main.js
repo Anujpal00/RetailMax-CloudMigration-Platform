@@ -1,5 +1,10 @@
 import "./style.css";
-import products from "./api/products.json";
+fetch('/api/products.json')
+  .then((res) => res.json())
+  .then((data) => {
+    console.log(data);
+  });
+
 import { showProductContainer } from "./homeProductCards";
 
 

@@ -1,0 +1,63 @@
+---
+- name: Deploy Docker App from ECR to EC2
+  hosts: all
+  become: yes
+
+  vars:
+    region: "us-east-1"
+    # add your ecr repo url
+    ecr_repo: "529088255515.dkr.ecr.us-east-1.amazonaws.com/retailmax-cloudmigration-platform"  
+
+  tasks:
+
+  - name: Install Docker
+    apt:
+      name: docker.io
+      state: present
+      update_cache: true
+
+  - name: Start and enable Docker
+    systemd:
+      name: docker
+      enabled: yes
+      state: started
+
+  - name: Install dependencies for AWS CLI
+    apt:
+      name: 
+        - unzip
+        - curl
+      state: present
+      update_cache: yes
+
+  - name: Download AWS CLI v2 installer
+    shell: curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    args:
+      chdir: /tmp
+
+  - name: Unzip AWS CLI installer
+    shell: unzip -o awscliv2.zip
+    args:
+      chdir: /tmp
+
+  - name: Run AWS CLI installer with --update flag
+    shell: ./aws/install --update
+    args:
+      chdir: /tmp
+
+  - name: Authenticate Docker to ECR
+    shell: |
+      aws ecr get-login-password --region {{ region }} | docker login --username AWS --password-stdin {{ ecr_repo }}
+    environment:
+    # Add your AWS credentials here in .env file
+      AWS_ACCESS_KEY_ID: "{{ lookup('env','AWS_ACCESS_KEY_ID') | trim }}"
+      AWS_SECRET_ACCESS_KEY: "{{ lookup('env','AWS_SECRET_ACCESS_KEY') | trim }}"     
+
+  - name: Pull image from ECR
+    shell: docker pull {{ ecr_repo }}:latest
+
+  - name: Stop existing container
+    shell: docker rm -f web-app || true
+
+  - name: Run container
+    shell: docker run -d --name web-app -p 8081:80 {{ ecr_repo }}:latest
