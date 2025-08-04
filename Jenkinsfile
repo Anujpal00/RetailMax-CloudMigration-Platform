@@ -57,7 +57,7 @@ pipeline {
 
         stage('Ansible Deployment') {
     steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
             dir('deployment') {
                 bat '''
                     set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
