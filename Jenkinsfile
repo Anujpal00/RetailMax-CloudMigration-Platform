@@ -34,7 +34,7 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    def docker.image("${ECR_REPO_URL}:latest").push("latest")
+                    docker.image("${ECR_REPO_URL}:latest").push("latest")
                 }
             }
         }
