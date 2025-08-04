@@ -23,8 +23,8 @@ pipeline {
 
         stage('Login to AWS ECR') {
             steps {
-                sh '''
-                aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+                bat '''
+                aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_REPO_URL%
                 '''
             }
         }
@@ -40,7 +40,7 @@ pipeline {
         stage('Terraform Provisioning') {
             steps {
                 dir('terraform') {
-                    sh '''
+                    bat '''
                     terraform init
                     terraform apply -auto-approve
                     '''
@@ -51,7 +51,7 @@ pipeline {
         stage('Deploy to EC2 via Ansible') {
             steps {
                 dir('deployment') {
-                    sh '''
+                    bat '''
                     ansible-playbook -i inventory.ini deploy.yml --extra-vars "@.env"
                     '''
                 }
