@@ -17,7 +17,7 @@ pipeline {
             steps {
                 script {
                     def dockerImage = docker.build("${ECR_REPO_URL}:latest")
-                    // Save image reference for later stage
+                    // Save image reference
                     env.IMAGE_ID = dockerImage.id
                 }
             }
@@ -25,20 +25,16 @@ pipeline {
 
         stage('Login to AWS ECR') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
-                    sh '''
-                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
-                    '''
-                }
+                sh '''
+                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+                '''
             }
         }
 
         stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    // Reconstruct image using ID (WSL-safe)
-                    def dockerImage = docker.image(env.IMAGE_ID)
-                    dockerImage.push("latest")
+                    def docker.image("${ECR_REPO_URL}:latest").push("latest")
                 }
             }
         }
@@ -46,19 +42,10 @@ pipeline {
         stage('Terraform Provisioning') {
             steps {
                 dir('terraform') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-ecr-creds'
-                    ]]) {
-                        sh '''
-                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                            export AWS_DEFAULT_REGION=$AWS_REGION
-
-                            terraform init
-                            terraform apply -auto-approve
-                        '''
-                    }
+                    sh '''
+                        terraform init
+                        terraform apply -auto-approve
+                    '''
                 }
             }
         }
@@ -66,18 +53,9 @@ pipeline {
         stage('Ansible Deployment') {
             steps {
                 dir('deployment') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: 'aws-ecr-creds'
-                    ]]) {
-                        sh '''
-                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                            export AWS_DEFAULT_REGION=$AWS_REGION
-
-                            ansible-playbook -i inventory.ini deploy.yml
-                        '''
-                    }
+                    sh '''
+                        ansible-playbook -i inventory.ini deploy.yml
+                    '''
                 }
             }
         }
