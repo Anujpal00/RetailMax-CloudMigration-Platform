@@ -42,10 +42,15 @@ pipeline {
         stage('Terraform Provisioning') {
             steps {
                 dir('terraform') {
-                    bat '''
-                    terraform init
-                    terraform apply -auto-approve
-                    '''
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                        bat '''
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set AWS_DEFAULT_REGION=us-east-1
+                        terraform init
+                        terraform apply -auto-approve
+                        '''
+                    }
                 }
             }
         }
