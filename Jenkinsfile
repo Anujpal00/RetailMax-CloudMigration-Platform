@@ -64,6 +64,7 @@ pipeline {
                     set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
                     wsl ansible-playbook -i inventory.ini deploy.yml
                 '''
+               }
             }
         }
     }
