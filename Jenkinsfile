@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Clone Repo') {
             steps {
-                git branch: 'main', url: 'https://github.com/Anujpal00/RetailMax-CloudMigration-Platform.git' // Replace with your repo URL
+                git branch: 'master', url: 'https://github.com/Anujpal00/RetailMax-CloudMigration-Platform.git' // Replace with your repo URL
             }
         }
 
