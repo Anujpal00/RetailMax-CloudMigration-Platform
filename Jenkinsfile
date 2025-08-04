@@ -23,9 +23,11 @@ pipeline {
 
         stage('Login to AWS ECR') {
             steps {
-                bat '''
-                aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_REPO_URL%
-                '''
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                    bat '''
+                    aws ecr get-login-password --region %AWS_REGION% | docker login --username AWS --password-stdin %ECR_REPO_URL%
+                    '''
+                }
             }
         }
 
@@ -40,24 +42,34 @@ pipeline {
         stage('Terraform Provisioning') {
             steps {
                 dir('terraform') {
-                    bat '''
-                    terraform init
-                    terraform apply -auto-approve
-                    '''
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                        bat '''
+                        set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                        set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                        set AWS_DEFAULT_REGION=us-east-1
+                        terraform init
+                        terraform apply -auto-approve
+                        '''
+                    }
                 }
             }
         }
 
-        stage('Deploy to EC2 via Ansible') {
-            steps {
-                dir('deployment') {
-                    bat '''
-                    ansible-playbook -i inventory.ini deploy.yml --extra-vars "@.env"
-                    '''
-                }
+        stage('Ansible Deployment') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+            dir('deployment') {
+                bat '''
+                    set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                    set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                    wsl ansible-playbook -i inventory.ini deploy.yml
+                '''
+               }
             }
         }
     }
+}
+
 
     post {
         success {
