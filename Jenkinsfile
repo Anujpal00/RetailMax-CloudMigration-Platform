@@ -55,16 +55,20 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2 via Ansible') {
-            steps {
-                dir('deployment') {
-                    bat '''
-                    ansible-playbook -i inventory.ini deploy.yml --extra-vars "@.env"
-                    '''
-                }
+        stage('Ansible Deployment') {
+    steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-cred']]) {
+            dir('deployment') {
+                bat '''
+                    set AWS_ACCESS_KEY_ID=%AWS_ACCESS_KEY_ID%
+                    set AWS_SECRET_ACCESS_KEY=%AWS_SECRET_ACCESS_KEY%
+                    wsl ansible-playbook -i inventory.ini deploy.yml
+                '''
             }
         }
     }
+}
+
 
     post {
         success {
