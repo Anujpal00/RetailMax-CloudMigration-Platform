@@ -2,21 +2,23 @@ pipeline {
     agent any
 
     environment {
-        ECR_REPO_URL = "529088255515.dkr.ecr.us-east-1.amazonaws.com/retailmax-cloudmigration-platform" // Replace with your actual ECR URL
-        AWS_REGION = "us-east-1" // Replace with your actual AWS region
+        ECR_REPO_URL = "529088255515.dkr.ecr.us-east-1.amazonaws.com/retailmax-cloudmigration-platform"
+        AWS_REGION = "us-east-1"
     }
 
     stages {
         stage('Clone Repo') {
             steps {
-                git branch: 'master', url: 'https://github.com/Anujpal00/RetailMax-CloudMigration-Platform.git' // Replace with your repo URL
+                git branch: 'master', url: 'https://github.com/Anujpal00/RetailMax-CloudMigration-Platform.git'
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${ECR_REPO_URL}:latest")
+                    def dockerImage = docker.build("${ECR_REPO_URL}:latest")
+                    // Save image reference for later stage
+                    env.IMAGE_ID = dockerImage.id
                 }
             }
         }
@@ -25,7 +27,7 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
                     sh '''
-                    aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
                     '''
                 }
             }
@@ -34,7 +36,9 @@ pipeline {
         stage('Push Docker Image to ECR') {
             steps {
                 script {
-                    dockerImage.push()
+                    // Reconstruct image using ID (WSL-safe)
+                    def dockerImage = docker.image(env.IMAGE_ID)
+                    dockerImage.push("latest")
                 }
             }
         }
@@ -42,13 +46,17 @@ pipeline {
         stage('Terraform Provisioning') {
             steps {
                 dir('terraform') {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-ecr-creds'
+                    ]]) {
                         sh '''
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        export AWS_DEFAULT_REGION=us-east-1
-                        terraform init
-                        terraform apply -auto-approve
+                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                            export AWS_DEFAULT_REGION=$AWS_REGION
+
+                            terraform init
+                            terraform apply -auto-approve
                         '''
                     }
                 }
@@ -56,20 +64,24 @@ pipeline {
         }
 
         stage('Ansible Deployment') {
-    steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-creds']]) {
-            dir('deployment') {
-                sh '''
-                    export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID%
-                    export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY%
-                    ansible-playbook -i inventory.ini deploy.yml
-                '''
-               }
+            steps {
+                dir('deployment') {
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-ecr-creds'
+                    ]]) {
+                        sh '''
+                            export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+                            export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+                            export AWS_DEFAULT_REGION=$AWS_REGION
+
+                            ansible-playbook -i inventory.ini deploy.yml
+                        '''
+                    }
+                }
             }
         }
     }
-}
-
 
     post {
         success {
